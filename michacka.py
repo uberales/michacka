@@ -13,7 +13,7 @@ import random
 
 # spocita statistiky jednoho tymu
 # zadnej vodvaz, proste projede kazdyho s kazdym
-def GetTeamStats(one_team):
+def GetTeamStats(one_team, max_members):
     # statistiky obsahuji...
     # soucet strednich hodnot trueskillu
     mu = 0.0
@@ -46,7 +46,8 @@ def GetTeamStats(one_team):
         # pridej spolecne ucasti hrace do celkovych statistik tymu
         common_participations.append(cp_count)
     
-    # aby byla statkova metodika zachovana, melo by se neco malo pricist k sigme, ale...
+    # aby byla statkova metodika zachovana, melo by se neco malo pricist k sigme
+    sigma += (max_members - len(one_team)) * 25.0/3.0
     
     team_stats = {
         "mu": mu,
@@ -58,8 +59,8 @@ def GetTeamStats(one_team):
     return team_stats;
 
 # ohodnot, jak dobre jsou seskladane vsechny tymy
-def ScoreDistribution(all_teams):
-    stats = [GetTeamStats(t) for t in all_teams]
+def ScoreDistribution(all_teams, max_members):
+    stats = [GetTeamStats(t, max_members) for t in all_teams]
     return GetFitness(stats)
 
 # spocitej fitness funkci
@@ -67,31 +68,26 @@ def GetFitness(all_scores):
     # rozdeleni tymu je dobry
     # - pokud maji trueskilly tymu co nejmensi smerodatnou odchylku
     # - pokud je v tymech co nejnizsi pocet dvojic, co spolu uz sly
+    # - pokud maji odchylky trueskillu tymu co nejmensi smerodatnou odchylku
     # tady by se daly dopsat dalsi statisticky zjistitelny podminky
     # napr. jak vymyslet distribuci zen v tymech, ale to jsem nakonec vyresil jinak
 
     fitness = {
-        "std": numpy.std([s['mu'] for s in all_scores]),
+        "std_mu": numpy.std([s['mu'] for s in all_scores]),
+        "std_sigma": numpy.std([s['sigma'] for s in all_scores]),
         "sum": numpy.sum([s['pair_count'] for s in all_scores])
     }
     return fitness
 
 # srovnej fitness dvou tymu
-def CompareFitness(fitness_a, fitness_b):
+def IsFitnessBetter(fitness_a, fitness_b):  
     
-    diff_sum = fitness_a["sum"] - fitness_b["sum"]
-    diff_std = fitness_a["std"] - fitness_b["std"]
+    # vsechny parametry fitness musi byt lepsi (tj. mensi)
+    for key in fitness_a:
+        if fitness_a[key] >= fitness_b[key]:
+            return False
     
-    # fitness prvniho tymu (A) je lepsi, pokud ma nizsi oba parametry (nebo pri rovnosti jednoho z nich, ten druhej)
-    
-    if diff_sum < 0 and diff_std < 0:
-        return -1
-    elif diff_std == 0:
-        return diff_sum
-    elif diff_sum == 0:
-        return diff_std
-    else:
-        return 1
+    return True
 
 # prohod dva nahodne hrace ve dvou nahodnych tymech
 # vstup: hraci, max pocet zen
@@ -137,7 +133,7 @@ def CountWomen(team):
 # nastrel pocatecni rozlozeni lidi v tymu
 # nahaze lidi do tymu v sirce, nejdriv zeny, zbytek chlapi
 # pri mensim poctu lidi nez by pokrylo vsechny tymy ekvivalentne, by to melo generovat tymu s jednim hracem navic/min (podle toho, jaky je team_count) nez jeden znevyhodneny a ostatni akorat
-def GenerateTeamSeed(men, women, team_count, max_members):
+def GenerateTeamSeed(men, women, team_count):
     
     # pomichame kandidaty
     random.shuffle(women)
@@ -161,7 +157,7 @@ def GenerateTeamSeed(men, women, team_count, max_members):
     return teams
 
 # nastaveni hry
-max_members = 4
+team_members = 4
 
 # nacteme ucastniky (musime predem spustit michana_parser.py, ktery je postahuje ze Statku)
 participants = [];
@@ -174,7 +170,7 @@ men = [p for p in participants if not(p["woman"])]
 
 # nastavime pocet tymu
 # floor nebo ceil v team_count urci vysledne vyvazeni v pripade nerovnosti tymu
-team_count = int(numpy.ceil(len(participants) / max_members))
+team_count = int(numpy.ceil(len(participants) / team_members))
 # aspon nejaky zeny, ale ne moc
 max_women = int(numpy.ceil(1.0 * len(women) / team_count))
 
@@ -182,25 +178,36 @@ max_women = int(numpy.ceil(1.0 * len(women) / team_count))
 candidates = []
 
 # kolikrat chceme nastrelit tym a kolikrat ho chceme nechat relaxovat
-# iteraci musi byt radove 1000, aby se dosahlo rozumnyho minima
-seed_count = 1000
+# iteraci musi byt radove 30^n (n je pocet kriterii), aby se dosahlo rozumnyho minima, pokud je kriterium neostry, pri ostrym kriteriu staci par stovek iteraci
+seed_count = 10000
 iteration_count = 1000
+seed_stats = []
 
 for i in range(seed_count):
     # nastrelime nejake rozdeleni tymu a spocitame jeho fitness
-    teams = GenerateTeamSeed(men, women, team_count, max_members)
-    fitness = ScoreDistribution(teams)
+    teams = GenerateTeamSeed(men, women, team_count)
+    # pro vypocet statistiky tymu musime upravit maximum, aby se spravne pocitalo nasazeni
+    max_members = max([len(t) for t in teams])
+    
+    fitness = ScoreDistribution(teams, max_members)
+    
+    current_statistics = []
+    seed_stats.append(current_statistics)
     
     for j in range(iteration_count):
         # zkusime neco zmenit nahodnym prehozenim dvou hracu
         new_teams = SwapPlayers(teams, max_women)
-        new_fitness = ScoreDistribution(new_teams)
-        
+        new_fitness = ScoreDistribution(new_teams, max_members)
+        #print str(i) + ": " + str(new_fitness)
+
         # podivame se, jestli jsme neco zlepsili
-        if CompareFitness(new_fitness, fitness) < 0:
+        if IsFitnessBetter(new_fitness, fitness):
             # jestli jo, tak si to schovame
             teams = new_teams
             fitness = new_fitness
+            current_statistics.append(j)
+            print str(j) + ": Candidate found"
+    
     
     # prosli jsme iterace, nasli jsme kandidata    
     candidate = {"fitness": fitness, "teams": teams}
@@ -209,14 +216,14 @@ for i in range(seed_count):
     print str(i) + ": " + str(candidate["fitness"])
 
 # seradime kandidaty - preferujeme ty, kteri maji co nejnizsi pocet spolecnych ucasti dvojic
-candidates = sorted(candidates, key = lambda c: (c["fitness"]["sum"], c["fitness"]["std"]))
+candidates = sorted(candidates, key = lambda c: (c["fitness"]["sum"], c["fitness"]["std_mu"], c["fitness"]["std_sigma"]))
 
 # trochu to preparsujeme, at se to da ve vystupu cist
-readable_teams = []
-best_teams = candidates[0]["teams"]    
+best_teams = candidates[0]["teams"]
+max_members = max([len(t) for t in best_teams])
 readable_teams = [
     {"mu": stats["mu"], "sigma": stats["sigma"], "names": [p["name"] for p in team]} 
-    for team, stats in zip(best_teams, [GetTeamStats(t) for t in best_teams])
+    for team, stats in zip(best_teams, [GetTeamStats(t, max_members) for t in best_teams])
 ]
 
 # tohle je vysledek
@@ -226,4 +233,14 @@ print final_distribution
 # zapiseme ho nekam...
 with codecs.open('data/michana_distribution.json', 'w', encoding='utf8') as f:
     data = json.dumps(final_distribution, ensure_ascii = False, indent=4, separators=(',', ': '))
+    f.write(data)
+
+# zapiseme vsechny kandidaty, kdyz uz jsme se s nima pocitali...
+with codecs.open('data/michana_candidates.json', 'w', encoding='utf8') as f:
+    data = json.dumps(candidates, ensure_ascii = False, indent=4, separators=(',', ': '))
+    f.write(data)
+
+# zapiseme vsechny kandidaty, kdyz uz jsme se s nima pocitali...
+with codecs.open('data/seed_stats.json', 'w', encoding='utf8') as f:
+    data = json.dumps(seed_stats, ensure_ascii = False, indent=4, separators=(',', ': '))
     f.write(data)
