@@ -206,7 +206,7 @@ for i in range(seed_count):
             teams = new_teams
             fitness = new_fitness
             current_statistics.append(j)
-            print str(j) + ": Candidate found"
+            print str(j) + ": Candidate found: " + str(fitness)
     
     
     # prosli jsme iterace, nasli jsme kandidata    
