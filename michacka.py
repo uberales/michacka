@@ -96,7 +96,7 @@ def CompareFitness(fitness_a, fitness_b):
 # prohod dva nahodne hrace ve dvou nahodnych tymech
 # vstup: hraci, max pocet zen
 def SwapPlayers(all_teams, max_women):
-    new_teams = {}
+    new_teams = []
     
     # budeme prochazet tak dlouho, dokud vygenerovane tymy nebudou splnovat podminku na max pocet zen v tymu
     while True:

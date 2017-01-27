@@ -24,7 +24,8 @@ def CreatePlayer(player_id, name, sigma, mu):
         "id": int(player_id), 
         "name": name, 
         "sigma": float(sigma.replace(",", ".")), 
-        "mu": float(mu.replace(",", ".")), "partners": {}, 
+        "mu": float(mu.replace(",", ".")),
+        "partners": {}, 
         "woman": False
     }
     return player
@@ -54,7 +55,7 @@ participant_ids = set([p["id"] for p in matched_players])
 print 'Parsed matched players from Statek'
 
 # unmatched players have slightly different syntax
-pattern = r'<tr class=""?><td title.+?"expected_rank".+?"name".+?"members"><span.+?>(.+?)<\/span>.+?"mu">([0-9,]*)<\/td>.+?"sigma">([0-9,]*)<\/td><\/tr>'
+pattern = r'<tr class=""><td title.+?"expected_rank".+?"name".+?"members"><span.+?>(.+?)<\/span>.+?"mu">([0-9,]*)<\/td>.+?"sigma">([0-9,]*)<\/td><\/tr>'
 matches = re.findall(pattern, data_str)
 
 # unmatched partners do not have an id in Statek

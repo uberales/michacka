@@ -39,7 +39,7 @@ class StatekSlave:
         # return as one line
         return page.text.replace('\n', '').replace('\r', '')
 
-    # set method, obviously
+    # post method, obviously
     def Post(self, page_uri, post_data):
         url = self.base_url + page_uri
         page = self.session.post(url, post_data)
