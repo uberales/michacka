@@ -16,6 +16,8 @@ def IsWoman(name):
         return True
     if re.match('.*ska$', stripped_name):
         return True
+    if re.match(u'.*lá$', name):
+        return True
     return False
 
 # a shortcut for creating player's record
@@ -26,7 +28,7 @@ def CreatePlayer(player_id, name, sigma, mu):
         "sigma": float(sigma.replace(",", ".")), 
         "mu": float(mu.replace(",", ".")),
         "partners": {}, 
-        "woman": False
+        "woman": IsWoman(name)
     }
     return player
 
@@ -42,7 +44,7 @@ otrok = StatekSlave(login, password)
 data_str = otrok.Get('michana-2017/nasazeni')
 
 # try to find matched players first
-pattern = r'<tr.+? class="members"><a title=.+?href.+?hraci\/([0-9]*)">(.+?)<\/a>.+?"mu">([0-9,]*)<\/td>.+?"sigma">([0-9,]*)<\/td><\/tr>'
+pattern = r'<tr.+? class="members"><a title=.+?href.+?hraci\/([0-9]*)">(.+?)<\/a>.+?"mu">([-0-9,]*)<\/td>.+?"sigma">([0-9,]*)<\/td><\/tr>'
 matches = re.findall(pattern, data_str)
 
 # create matched players from loaded data
@@ -55,7 +57,7 @@ participant_ids = set([p["id"] for p in matched_players])
 print 'Parsed matched players from Statek'
 
 # unmatched players have slightly different syntax
-pattern = r'<tr class=""><td title.+?"expected_rank".+?"name".+?"members"><span.+?>(.+?)<\/span>.+?"mu">([0-9,]*)<\/td>.+?"sigma">([0-9,]*)<\/td><\/tr>'
+pattern = r'<tr class=""><td title.+?"expected_rank".+?"name".+?"members"><span.+?>(.+?)<\/span>.+?"mu">([-0-9,]*)<\/td>.+?"sigma">([0-9,]*)<\/td><\/tr>'
 matches = re.findall(pattern, data_str)
 
 # unmatched partners do not have an id in Statek
@@ -80,7 +82,6 @@ for player in matched_players:
     # pack it together
     player['partners'] = dict(zip(partners, common_participations));    
     # assume gender (TRIGGERED!)
-    player['woman'] = IsWoman(player['name'])
     
     # done
     print "Player loaded: " + player["name"]
