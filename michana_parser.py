@@ -18,6 +18,8 @@ def IsWoman(name):
         return True
     if re.match(u'.*lá$', name):
         return True
+    if re.match(u'.*chá$', name):
+        return True
     return False
 
 # a shortcut for creating player's record
