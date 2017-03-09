@@ -74,7 +74,7 @@ def GetFitness(all_scores):
 
     fitness = {
         "std_mu": numpy.std([s['mu'] for s in all_scores]),
-        "std_sigma": numpy.std([s['sigma'] for s in all_scores]),
+#        "std_sigma": numpy.std([s['sigma'] for s in all_scores]),
         "sum": numpy.sum([s['pair_count'] for s in all_scores])
     }
     return fitness
@@ -120,7 +120,8 @@ def SwapPlayers(all_teams, max_women):
             break
         else:
             # kdyby nahodou byly prohazovany tymy s limitnim poctem zen, tak si pockame, dokud nebudou prohozeny zeny (lazy...)
-            print 'Too many women per randomized team, trying again.'
+            #print 'Too many women per randomized team, trying again.'
+            pass
     
     # jestli jsme se nezacyklili, tak hotovo. k zacykleni by snad dojit nemelo
     return new_teams
@@ -179,8 +180,9 @@ candidates = []
 
 # kolikrat chceme nastrelit tym a kolikrat ho chceme nechat relaxovat
 # iteraci musi byt radove 30^n (n je pocet kriterii), aby se dosahlo rozumnyho minima, pokud je kriterium neostry, pri ostrym kriteriu staci par stovek iteraci
-seed_count = 10000
-iteration_count = 1000
+seed_count = 1000
+settle_count = 10
+stop_count = 1000
 seed_stats = []
 
 for i in range(seed_count):
@@ -194,7 +196,15 @@ for i in range(seed_count):
     current_statistics = []
     seed_stats.append(current_statistics)
     
-    for j in range(iteration_count):
+    j = 0
+    k = 0
+    u = 0
+    l = 0
+    settle = False
+    # zkusime najit a vylepsit nejakou kombinaci, kde spolu dva hraci nesli
+    # po 1000 iteracich to zabijem tak jak tak
+    while (fitness["sum"] >= 0 and j < settle_count and settle) or k < stop_count:
+        k += 1
         # zkusime neco zmenit nahodnym prehozenim dvou hracu
         new_teams = SwapPlayers(teams, max_women)
         new_fitness = ScoreDistribution(new_teams, max_members)
@@ -206,17 +216,26 @@ for i in range(seed_count):
             teams = new_teams
             fitness = new_fitness
             current_statistics.append(j)
-            print str(j) + ": Candidate found: " + str(fitness)
-    
-    
+            
+            if fitness["sum"] == 0:
+                u += 1
+                l = j
+            
+#            print str(j) + ": Candidate found: " + str(fitness)
+        if fitness["sum"] == 0:
+            j += 1
+            settle = True
+        
     # prosli jsme iterace, nasli jsme kandidata    
     candidate = {"fitness": fitness, "teams": teams}
     candidates.append(candidate)
     # podivame se na jeho fitness
-    print str(i) + ": " + str(candidate["fitness"])
+    print str(i) + ": " + str(candidate["fitness"]) + " (" + str(u) + ", " + str(l) + ")"
 
 # seradime kandidaty - preferujeme ty, kteri maji co nejnizsi pocet spolecnych ucasti dvojic
-candidates = sorted(candidates, key = lambda c: (c["fitness"]["sum"], c["fitness"]["std_mu"], c["fitness"]["std_sigma"]))
+# candidates = sorted(candidates, key = lambda c: (c["fitness"]["sum"], c["fitness"]["std_mu"], c["fitness"]["std_sigma"]))
+candidates = sorted(candidates, key = lambda c: (c["fitness"]["sum"], c["fitness"]["std_mu"]))
+
 
 # trochu to preparsujeme, at se to da ve vystupu cist
 best_teams = candidates[0]["teams"]
